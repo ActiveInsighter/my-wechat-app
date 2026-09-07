@@ -2,7 +2,7 @@
   "name": "my-wechat-app",
   "version": "0.1.0",
   "private": true,
-  "description": "基于 uni-app、Vue 3 和 TypeScript 的微信小程序起始项目",
+  "description": "基于 uni-app、Vue 3 和 TypeScript 的 AnyWorkflow 微信小程序控制台",
   "scripts": {
     "dev:custom": "uni -p",
     "dev:h5": "uni",
@@ -37,7 +37,9 @@
     "build:quickapp-webview-huawei": "uni build -p quickapp-webview-huawei",
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union",
     "type-check": "vue-tsc --noEmit",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "check": "npm run type-check && npm run test:unit",
+    "ci:mp-weixin": "npm run check && npm run build:mp-weixin"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-5020420260813003",
