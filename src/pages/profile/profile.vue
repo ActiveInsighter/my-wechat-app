@@ -53,6 +53,10 @@ async function testConnection() {
   }
 }
 
+function openQueue() {
+  uni.switchTab({ url: '/pages/explore/explore' })
+}
+
 function logout() {
   uni.showModal({
     title: '断开 AnyWorkflow？',
@@ -136,7 +140,7 @@ function logout() {
             <uni-icons type="right" size="16" color="#A5AEA8" />
           </button>
 
-          <button class="setting-action" @tap="uni.switchTab({ url: '/pages/explore/explore' })">
+          <button class="setting-action" @tap="openQueue">
             <view class="setting-icon">
               <uni-icons type="list" size="20" color="#143B36" />
             </view>
