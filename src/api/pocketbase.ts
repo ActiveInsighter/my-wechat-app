@@ -19,7 +19,7 @@ interface PocketBaseRequestOptions {
   baseUrl: string
   url: string
   method?: UniApp.RequestOptions['method']
-  data?: unknown
+  data?: UniApp.RequestOptions['data']
   token?: string
 }
 
