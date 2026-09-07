@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import {
+  cloneDispatchTaskAsDraft,
   createDispatchTask,
   getDispatchTask,
   publishDraftTask,
@@ -113,7 +114,7 @@ async function saveDraft() {
     let saved: DispatchTaskRecord
     if (task.value) {
       if (!canEditTask(task.value)) {
-        uni.showToast({ title: '已发布任务不可修改，请重新发布', icon: 'none' })
+        uni.showToast({ title: '已发布任务不可修改，请先复制为草稿', icon: 'none' })
         return
       }
       saved = await updateDraftTask(session, task.value.id, payload())
@@ -165,6 +166,28 @@ async function publish() {
   } catch (error) {
     uni.showToast({
       title: error instanceof Error ? error.message : '发布失败',
+      icon: 'none',
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function cloneToDraft() {
+  if (!task.value || saving.value) return
+  const session = requireSession()
+  if (!session) return
+  saving.value = true
+  try {
+    const created = await cloneDispatchTaskAsDraft(session, task.value)
+    dispatchStore.upsert(created)
+    task.value = created
+    taskId.value = created.id
+    fillForm(created)
+    uni.showToast({ title: '已复制为草稿，可继续修改', icon: 'success' })
+  } catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '复制草稿失败',
       icon: 'none',
     })
   } finally {
@@ -308,15 +331,18 @@ onLoad((query) => {
           </view>
 
           <view v-else class="action-stack">
+            <button class="secondary-button" :loading="saving" @tap="cloneToDraft">
+              复制为可编辑草稿
+            </button>
             <button v-if="canRepublish" class="primary-button" :loading="saving" @tap="republish">
-              重新发布为新任务
+              直接重新发布
             </button>
             <view v-if="canPause || canResume || canCancel" class="control-row">
               <button v-if="canPause" class="secondary-button control-button" @tap="command('pause')">暂停</button>
               <button v-if="canResume" class="secondary-button control-button" @tap="command('resume')">继续</button>
               <button v-if="canCancel" class="danger-button control-button" @tap="command('cancel')">取消</button>
             </view>
-            <text class="readonly-tip">已发布任务正文保持不可变；需要修改内容时请重新发布一条新任务。</text>
+            <text class="readonly-tip">已发布任务正文保持不可变；复制为新草稿后即可修改并再次发布。</text>
           </view>
         </template>
       </view>
