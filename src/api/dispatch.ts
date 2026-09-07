@@ -118,6 +118,22 @@ export async function publishDraftTask(
   })
 }
 
+export async function cloneDispatchTaskAsDraft(
+  session: WorkflowSession,
+  task: DispatchTaskRecord,
+): Promise<DispatchTaskRecord> {
+  const input = toRepublishInput(task)
+  return createDispatchTask(session, {
+    ...input,
+    status: 'draft',
+    executionSettings: {
+      ...input.executionSettings,
+      source: 'wechat-miniapp',
+      clonedFromTaskId: task.id,
+    },
+  })
+}
+
 export async function republishDispatchTask(
   session: WorkflowSession,
   task: DispatchTaskRecord,
