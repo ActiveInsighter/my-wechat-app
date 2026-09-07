@@ -1,0 +1,82 @@
+/* 设计令牌：优先使用语义化变量，便于后续替换品牌色。 */
+$color-primary: #143b36;
+$color-primary-soft: #dce9df;
+$color-accent: #e99b5a;
+$color-bg: #f7f8f5;
+$color-surface: #ffffff;
+$color-text: #17231f;
+$color-text-secondary: #6f7974;
+$color-text-muted: #9aa29d;
+$color-border: #e6ebe6;
+$color-success: #3e8d69;
+$color-warning: #c77a30;
+
+$space-1: 8rpx;
+$space-2: 16rpx;
+$space-3: 24rpx;
+$space-4: 32rpx;
+$space-5: 40rpx;
+$space-6: 48rpx;
+
+$radius-sm: 12rpx;
+$radius-md: 20rpx;
+$radius-lg: 28rpx;
+$radius-pill: 999rpx;
+
+/* uni-app 常用变量，兼容依赖这些变量的 uni-ui 组件。 */
+$uni-color-primary: $color-primary;
+$uni-color-success: $color-success;
+$uni-color-warning: $color-warning;
+$uni-color-error: #c45d57;
+$uni-text-color: $color-text;
+$uni-text-color-inverse: #fff;
+$uni-text-color-grey: $color-text-secondary;
+$uni-text-color-placeholder: $color-text-muted;
+$uni-text-color-disable: #c9d0cb;
+$uni-bg-color: $color-surface;
+$uni-bg-color-grey: $color-bg;
+$uni-bg-color-hover: #eef2ed;
+$uni-bg-color-mask: rgba(23, 35, 31, 0.45);
+$uni-border-color: $color-border;
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+$uni-border-radius-sm: $radius-sm;
+$uni-border-radius-base: $radius-md;
+$uni-border-radius-lg: $radius-lg;
+$uni-border-radius-circle: 50%;
+
+view,
+text,
+button,
+image,
+scroll-view {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  line-height: inherit;
+  background: transparent;
+}
+
+.page {
+  min-height: 100vh;
+  background: $color-bg;
+}
+
+.page-scroll {
+  min-height: 100vh;
+}
+
+.content-wrap {
+  padding: 32rpx 32rpx 64rpx;
+}
+
+.surface-card {
+  background: $color-surface;
+  border: 1rpx solid $color-border;
+  border-radius: $radius-lg;
+}
