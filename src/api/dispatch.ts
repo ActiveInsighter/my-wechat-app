@@ -10,10 +10,10 @@ import type {
 import { normalizeQueueText, toRepublishInput } from '@/features/dispatch/model'
 
 const COLLECTION_URL = '/api/collections/aw_dispatch_tasks/records'
+const ACTION_URL = '/api/anyworkflow/dispatch/tasks'
 
-function taskPayload(session: WorkflowSession, input: DispatchTaskCreateInput) {
+function configurationPayload(input: DispatchTaskInput) {
   return {
-    owner: session.ownerId,
     title: input.title.trim() || '云端任务',
     queueText: normalizeQueueText(input.queueText),
     executionMode: input.executionMode,
@@ -21,6 +21,13 @@ function taskPayload(session: WorkflowSession, input: DispatchTaskCreateInput) {
       ? 1
       : Math.min(16, Math.max(1, Math.trunc(input.maxConcurrency || 1))),
     executionSettings: input.executionSettings || {},
+  }
+}
+
+function taskPayload(session: WorkflowSession, input: DispatchTaskCreateInput) {
+  return {
+    owner: session.ownerId,
+    ...configurationPayload(input),
     status: input.status,
     requestedAction: 'none',
     commandVersion: 0,
@@ -78,18 +85,10 @@ export async function updateDraftTask(
 ): Promise<DispatchTaskRecord> {
   return pocketBaseRequest({
     baseUrl: session.baseUrl,
-    url: `${COLLECTION_URL}/${encodeURIComponent(taskId)}`,
-    method: 'PATCH',
+    url: `${ACTION_URL}/${encodeURIComponent(taskId)}/draft`,
+    method: 'POST',
     token: session.token,
-    data: {
-      title: input.title.trim() || '云端任务',
-      queueText: normalizeQueueText(input.queueText),
-      executionMode: input.executionMode,
-      maxConcurrency: input.executionMode === 'serial'
-        ? 1
-        : Math.min(16, Math.max(1, Math.trunc(input.maxConcurrency || 1))),
-      executionSettings: input.executionSettings || {},
-    },
+    data: configurationPayload(input),
   })
 }
 
@@ -100,21 +99,10 @@ export async function publishDraftTask(
 ): Promise<DispatchTaskRecord> {
   return pocketBaseRequest({
     baseUrl: session.baseUrl,
-    url: `${COLLECTION_URL}/${encodeURIComponent(task.id)}`,
-    method: 'PATCH',
+    url: `${ACTION_URL}/${encodeURIComponent(task.id)}/publish`,
+    method: 'POST',
     token: session.token,
-    data: {
-      title: input.title.trim() || '云端任务',
-      queueText: normalizeQueueText(input.queueText),
-      executionMode: input.executionMode,
-      maxConcurrency: input.executionMode === 'serial'
-        ? 1
-        : Math.min(16, Math.max(1, Math.trunc(input.maxConcurrency || 1))),
-      executionSettings: input.executionSettings || {},
-      status: 'queued',
-      requestedAction: 'none',
-      commandVersion: task.commandVersion + 1,
-    },
+    data: configurationPayload(input),
   })
 }
 
@@ -146,20 +134,12 @@ export async function requestDispatchAction(
   task: DispatchTaskRecord,
   action: Exclude<DispatchRequestedAction, 'none'>,
 ): Promise<DispatchTaskRecord> {
-  const status = action === 'resume'
-    ? (task.status === 'draft' ? 'queued' : 'running')
-    : task.status
-
   return pocketBaseRequest({
     baseUrl: session.baseUrl,
-    url: `${COLLECTION_URL}/${encodeURIComponent(task.id)}`,
-    method: 'PATCH',
+    url: `${ACTION_URL}/${encodeURIComponent(task.id)}/command`,
+    method: 'POST',
     token: session.token,
-    data: {
-      requestedAction: action,
-      commandVersion: task.commandVersion + 1,
-      status,
-    },
+    data: { action },
   })
 }
 
