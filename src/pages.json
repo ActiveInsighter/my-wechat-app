@@ -9,26 +9,33 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "工作台",
+        "navigationBarTitleText": "AnyWorkflow",
         "enablePullDownRefresh": false
       }
     },
     {
       "path": "pages/explore/explore",
       "style": {
-        "navigationBarTitleText": "发现"
+        "navigationBarTitleText": "任务队列",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/profile/profile",
       "style": {
-        "navigationBarTitleText": "我的"
+        "navigationBarTitleText": "连接与设置"
+      }
+    },
+    {
+      "path": "pages/task-editor/task-editor",
+      "style": {
+        "navigationBarTitleText": "任务编辑器"
       }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "小程序工作台",
+    "navigationBarTitleText": "AnyWorkflow",
     "navigationBarBackgroundColor": "#F7F8F5",
     "backgroundColor": "#F7F8F5",
     "backgroundTextStyle": "light"
@@ -45,11 +52,11 @@
       },
       {
         "pagePath": "pages/explore/explore",
-        "text": "发现"
+        "text": "任务"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的"
+        "text": "设置"
       }
     ]
   }
