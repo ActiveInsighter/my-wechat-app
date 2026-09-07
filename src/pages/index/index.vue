@@ -1,42 +1,76 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppSectionTitle from '@/components/AppSectionTitle.vue'
-import QuickActionCard from '@/components/QuickActionCard.vue'
-import { getGreeting } from '@/utils/format'
-import { useUserStore } from '@/stores/user'
+import DispatchTaskCard from '@/components/DispatchTaskCard.vue'
+import { republishDispatchTask } from '@/api/dispatch'
+import type { DispatchTaskRecord } from '@/features/dispatch/types'
+import { useDispatchStore } from '@/stores/dispatch'
+import { useWorkflowStore } from '@/stores/workflow'
 
-const userStore = useUserStore()
-const completedToday = ref(6)
-const greeting = getGreeting(new Date().getHours())
-const displayName = computed(() => userStore.displayName)
+const workflowStore = useWorkflowStore()
+const dispatchStore = useDispatchStore()
 
-const stats = [
-  { icon: 'calendar', value: '12', label: '本周计划', color: '#143B36' },
-  { icon: 'checkmarkempty', value: '86%', label: '完成率', color: '#3E8D69' },
-  { icon: 'flag', value: '3', label: '进行中', color: '#C77A30' },
-]
+const recentTasks = computed(() => dispatchStore.tasks.slice(0, 3))
 
-const quickActions = [
-  { icon: 'compose', title: '新建计划', description: '把想法变成下一步行动' },
-  { icon: 'calendar', title: '查看日历', description: '快速浏览近期安排' },
-  { icon: 'scan', title: '扫一扫', description: '识别并保存重要信息' },
-  { icon: 'gear', title: '偏好设置', description: '调整你的工作方式' },
-]
+const stats = computed(() => [
+  { value: String(dispatchStore.draftCount), label: '草稿' },
+  { value: String(dispatchStore.activeCount), label: '执行中' },
+  { value: String(dispatchStore.failedCount), label: '失败' },
+])
 
-function openAction(title: string) {
-  uni.showToast({
-    title: `${title}功能待接入`,
-    icon: 'none',
-  })
+async function refresh(showToast = false) {
+  if (!workflowStore.session) return
+  try {
+    await dispatchStore.refresh(workflowStore.session)
+    if (showToast) uni.showToast({ title: '已同步', icon: 'success' })
+  } catch (error) {
+    if (showToast) {
+      uni.showToast({
+        title: error instanceof Error ? error.message : '同步失败',
+        icon: 'none',
+      })
+    }
+  }
 }
 
-function checkIn() {
-  completedToday.value += 1
-  uni.showToast({
-    title: '今日进度已更新',
-    icon: 'success',
-  })
+function createTask() {
+  if (!workflowStore.isConnected) {
+    uni.switchTab({ url: '/pages/profile/profile' })
+    return
+  }
+  uni.navigateTo({ url: '/pages/task-editor/task-editor' })
 }
+
+function openQueue() {
+  uni.switchTab({ url: '/pages/explore/explore' })
+}
+
+function openSettings() {
+  uni.switchTab({ url: '/pages/profile/profile' })
+}
+
+function openTask(task: DispatchTaskRecord) {
+  uni.navigateTo({ url: `/pages/task-editor/task-editor?id=${encodeURIComponent(task.id)}` })
+}
+
+async function republish(task: DispatchTaskRecord) {
+  if (!workflowStore.session) return
+  try {
+    const created = await republishDispatchTask(workflowStore.session, task)
+    dispatchStore.upsert(created)
+    uni.showToast({ title: '已重新发布', icon: 'success' })
+  } catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '重新发布失败',
+      icon: 'none',
+    })
+  }
+}
+
+onShow(() => {
+  void refresh(false)
+})
 </script>
 
 <template>
@@ -45,24 +79,24 @@ function checkIn() {
       <view class="content-wrap home-content">
         <view class="topbar">
           <view>
-            <text class="eyebrow">MINI WORKSPACE</text>
-            <text class="brand-title">轻一点，做重要的事</text>
+            <text class="eyebrow">ANYWORKFLOW REMOTE</text>
+            <text class="brand-title">移动工作流控制台</text>
           </view>
-          <button class="notification-button" aria-label="查看通知" @tap="openAction('通知')">
-            <uni-icons type="notification" size="22" color="#143B36" />
-            <view class="notification-dot" />
+          <button class="connection-button" @tap="openSettings">
+            <view class="connection-dot" :class="{ online: workflowStore.isConnected }" />
+            <text>{{ workflowStore.isConnected ? '已连接' : '未连接' }}</text>
           </button>
         </view>
 
         <view class="hero-card">
-          <view class="hero-copy">
-            <text class="hero-kicker">{{ greeting }}，{{ displayName }}</text>
-            <text class="hero-title">今天也留一点<br />时间给重要的事</text>
-            <text class="hero-caption">完成一件小事，进度就会向前一步。</text>
-          </view>
-          <button class="hero-action" @tap="checkIn">
-            <text>记录进度</text>
-            <uni-icons type="arrow-right" size="16" color="#FFFFFF" />
+          <text class="hero-kicker">PROMPT → QUEUE → DESKTOP</text>
+          <text class="hero-title">随时写提示词，<br />直接交给电脑执行。</text>
+          <text class="hero-caption">
+            {{ workflowStore.isConnected ? `当前账户：${workflowStore.displayName}` : '先连接 AnyWorkflow PocketBase 后端' }}
+          </text>
+          <button class="hero-action" @tap="createTask">
+            <text>新建任务</text>
+            <uni-icons type="arrow-right" size="16" color="#143B36" />
           </button>
           <view class="hero-orbit orbit-one" />
           <view class="hero-orbit orbit-two" />
@@ -70,36 +104,61 @@ function checkIn() {
 
         <view class="stats-grid">
           <view v-for="stat in stats" :key="stat.label" class="stat-card">
-            <view class="stat-icon" :style="{ color: stat.color }">
-              <uni-icons :type="stat.icon" size="20" :color="stat.color" />
-            </view>
-            <text class="stat-value">{{ stat.value }}</text>
+            <text class="stat-value">{{ workflowStore.isConnected ? stat.value : '—' }}</text>
             <text class="stat-label">{{ stat.label }}</text>
           </view>
         </view>
 
-        <AppSectionTitle title="快捷入口" subtitle="常用功能，一触即达" action-text="全部" @action="openAction('快捷入口')" />
+        <AppSectionTitle title="快捷操作" subtitle="常用控制，一触即达" />
         <view class="quick-grid">
-          <QuickActionCard
-            v-for="action in quickActions"
-            :key="action.title"
-            :icon="action.icon"
-            :title="action.title"
-            :description="action.description"
-            @tap="openAction(action.title)"
-          />
+          <button class="quick-card" @tap="createTask">
+            <uni-icons type="compose" size="23" color="#143B36" />
+            <text class="quick-title">写提示词</text>
+            <text class="quick-description">新建草稿或直接发布</text>
+          </button>
+          <button class="quick-card" @tap="openQueue">
+            <uni-icons type="list" size="23" color="#143B36" />
+            <text class="quick-title">任务队列</text>
+            <text class="quick-description">查看状态与重新发布</text>
+          </button>
+          <button class="quick-card" @tap="refresh(true)">
+            <uni-icons type="refresh" size="23" color="#143B36" />
+            <text class="quick-title">同步状态</text>
+            <text class="quick-description">刷新电脑端执行进度</text>
+          </button>
+          <button class="quick-card" @tap="openSettings">
+            <uni-icons type="gear" size="23" color="#143B36" />
+            <text class="quick-title">连接设置</text>
+            <text class="quick-description">PocketBase 与账户</text>
+          </button>
         </view>
 
-        <AppSectionTitle title="今日提醒" subtitle="保持节奏，不必着急" />
-        <view class="reminder-card">
-          <view class="reminder-mark">
-            <uni-icons type="checkmarkempty" size="22" color="#3E8D69" />
+        <template v-if="workflowStore.isConnected">
+          <AppSectionTitle title="最近任务" subtitle="最近更新的三条任务" action-text="全部" @action="openQueue" />
+          <view v-if="recentTasks.length" class="recent-list">
+            <DispatchTaskCard
+              v-for="task in recentTasks"
+              :key="task.id"
+              :task="task"
+              @open="openTask"
+              @republish="republish"
+            />
           </view>
-          <view class="reminder-copy">
-            <text class="reminder-title">完成 {{ completedToday }} 件小事</text>
-            <text class="reminder-description">不错的开始，继续保持稳定的节奏。</text>
+          <view v-else class="empty-card">
+            <text class="empty-title">还没有云端任务</text>
+            <text class="empty-description">从一条提示词开始，保存为草稿或直接发布。</text>
           </view>
-          <text class="reminder-time">进行中</text>
+        </template>
+
+        <view v-else class="connect-card" @tap="openSettings">
+          <view class="connect-icon">
+            <uni-icons type="link" size="22" color="#143B36" />
+          </view>
+          <view class="connect-copy">
+            <text class="connect-title">连接 AnyWorkflow</text>
+            <text class="connect-description">登录 aw_clients 后同步你的 dispatch 任务。</text>
+          </view>
+          <uni-icons type="right" size="16" color="#A5AEA8" />
         </view>
       </view>
     </scroll-view>
@@ -109,17 +168,20 @@ function checkIn() {
 <style lang="scss" scoped>
 .home-content {
   padding-top: 28rpx;
+  padding-bottom: 48rpx;
 }
 
 .topbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 34rpx;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
 }
 
 .topbar > view {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8rpx;
 }
@@ -133,37 +195,38 @@ function checkIn() {
 
 .brand-title {
   color: $color-primary;
-  font-size: 38rpx;
+  font-size: 37rpx;
   font-weight: 700;
-  letter-spacing: 1rpx;
 }
 
-.notification-button {
-  position: relative;
+.connection-button {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 72rpx;
-  height: 72rpx;
+  gap: 8rpx;
+  margin: 4rpx 0 0;
+  padding: 10rpx 14rpx;
+  color: $color-text-secondary;
   background: $color-surface;
   border: 1rpx solid $color-border;
+  border-radius: $radius-pill;
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+.connection-dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #c2c8c4;
   border-radius: 50%;
 }
 
-.notification-dot {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  width: 10rpx;
-  height: 10rpx;
-  background: $color-accent;
-  border: 2rpx solid $color-surface;
-  border-radius: 50%;
+.connection-dot.online {
+  background: $color-success;
 }
 
 .hero-card {
   position: relative;
-  min-height: 342rpx;
+  min-height: 330rpx;
   overflow: hidden;
   padding: 36rpx;
   background: $color-primary;
@@ -171,48 +234,49 @@ function checkIn() {
   box-shadow: 0 16rpx 40rpx rgba(20, 59, 54, 0.16);
 }
 
-.hero-copy {
+.hero-kicker,
+.hero-title,
+.hero-caption,
+.hero-action {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
 }
 
 .hero-kicker {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 24rpx;
+  display: block;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
 }
 
 .hero-title {
-  margin-top: 18rpx;
-  color: #ffffff;
-  font-size: 44rpx;
+  display: block;
+  margin-top: 16rpx;
+  color: #fff;
+  font-size: 43rpx;
   font-weight: 700;
   line-height: 1.35;
-  letter-spacing: 1rpx;
 }
 
 .hero-caption {
-  margin-top: 16rpx;
+  display: block;
+  margin-top: 14rpx;
   color: rgba(255, 255, 255, 0.62);
-  font-size: 23rpx;
+  font-size: 22rpx;
 }
 
 .hero-action {
-  position: absolute;
-  z-index: 1;
-  bottom: 34rpx;
-  left: 36rpx;
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding: 16rpx 22rpx;
+  width: fit-content;
+  margin: 28rpx 0 0;
+  padding: 15rpx 22rpx;
   color: $color-primary;
-  background: #ffffff;
+  background: #fff;
   border-radius: $radius-pill;
   font-size: 24rpx;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .hero-orbit {
@@ -240,28 +304,17 @@ function checkIn() {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16rpx;
-  margin: 24rpx 0 48rpx;
+  margin: 24rpx 0 44rpx;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
   flex-direction: column;
-  padding: 22rpx 10rpx 20rpx;
+  padding: 22rpx 10rpx;
   background: $color-surface;
   border: 1rpx solid $color-border;
   border-radius: $radius-md;
-}
-
-.stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44rpx;
-  height: 44rpx;
-  margin-bottom: 12rpx;
-  background: #f0f4ef;
-  border-radius: 50%;
 }
 
 .stat-value {
@@ -271,7 +324,7 @@ function checkIn() {
 }
 
 .stat-label {
-  margin-top: 4rpx;
+  margin-top: 5rpx;
   color: $color-text-muted;
   font-size: 21rpx;
 }
@@ -280,53 +333,97 @@ function checkIn() {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16rpx;
-  margin-bottom: 48rpx;
+  margin-bottom: 44rpx;
 }
 
-.reminder-card {
+.quick-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: 24rpx;
+  flex-direction: column;
+  background: $color-surface;
+  border: 1rpx solid $color-border;
+  border-radius: $radius-md;
+  text-align: left;
+}
+
+.quick-title {
+  margin-top: 18rpx;
+  color: $color-text;
+  font-size: 27rpx;
+  font-weight: 650;
+}
+
+.quick-description {
+  margin-top: 7rpx;
+  color: $color-text-secondary;
+  font-size: 21rpx;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.empty-card,
+.connect-card {
   padding: 24rpx;
   background: $color-surface;
   border: 1rpx solid $color-border;
   border-radius: $radius-md;
 }
 
-.reminder-mark {
+.empty-card {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 64rpx;
-  width: 64rpx;
-  height: 64rpx;
-  margin-right: 18rpx;
-  background: #e4f1e8;
-  border-radius: 18rpx;
-}
-
-.reminder-copy {
-  display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 8rpx;
 }
 
-.reminder-title {
+.empty-title {
   color: $color-text;
-  font-size: 27rpx;
-  font-weight: 600;
+  font-size: 26rpx;
+  font-weight: 650;
 }
 
-.reminder-description {
+.empty-description {
   color: $color-text-secondary;
   font-size: 22rpx;
 }
 
-.reminder-time {
-  padding: 8rpx 12rpx;
-  color: $color-success;
-  background: #edf6ef;
-  border-radius: $radius-pill;
+.connect-card {
+  display: flex;
+  align-items: center;
+}
+
+.connect-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  margin-right: 18rpx;
+  background: $color-primary-soft;
+  border-radius: 18rpx;
+}
+
+.connect-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.connect-title {
+  color: $color-text;
+  font-size: 26rpx;
+  font-weight: 650;
+}
+
+.connect-description {
+  color: $color-text-secondary;
   font-size: 21rpx;
 }
 </style>
